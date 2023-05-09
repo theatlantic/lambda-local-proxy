@@ -1,12 +1,13 @@
-FROM golang:1.19 AS build-env
-
-WORKDIR /go/src/app
-ADD . /go/src/app
-
+FROM --platform=$BUILDPLATFORM golang:1.19 AS build-env
+ARG TARGETOS
+ARG TARGETARCH
+WORKDIR /src/
+COPY . .
 RUN go test -mod=vendor -cover ./...
-RUN CGO_ENABLED=0 go build -mod=vendor -o /go/bin/app
+RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
+    go build -mod=vendor -ldflags="-s -w" -a -installsuffix cgo -o app
 
 
-FROM gcr.io/distroless/static:latest-amd64
-COPY --from=build-env /go/bin/app /app
+FROM scratch
+COPY --from=build-env /src/app /app
 CMD ["/app"]
